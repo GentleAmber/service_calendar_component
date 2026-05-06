@@ -25,7 +25,15 @@
   }
   #errorMsg {
     color: red;
+  }
+  .hidden {
     display: none;
+  }
+  .nonbookable {
+    background-color: gray;
+  }
+  .modal {
+    position: absolute;
   }
 </style>
 
@@ -46,6 +54,21 @@
     <button id="nextWeek">Next week &rarr;</button>
   </div>
 
+  <div id="modal" class="modal hidden">
+    <button class="close-btn" id="modalCloseBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+ 
+    <p class="heading">Choose your session</p>
+    <p class="sub">Select a duration that works for you</p>
+ 
+    <div class="modal-options" id="modalOptions"></div>
+ 
+    <button class="confirm-btn" id="confirmBtn">Confirm</button>
+  </div>
+
   <div id="calendarContainer"></div>
 </div>
 
@@ -54,7 +77,6 @@
   const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var headerDate = new Date();
   var services = [];
-  var slots = [];
 
   renderCalendar();
 
@@ -65,7 +87,7 @@
     const { type, data } = event.data;
 
     if (type == "SET_SERVICES") {
-      services = data;
+      services = data; 
       renderDropdown(data);
     }
 
@@ -75,6 +97,10 @@
 
     if (type == "SET_CLS_SLOTS") {
       renderClassSlots(data);
+    }
+
+    if (type == "SHOW_APPO_VARIANTS") {
+      renderPopUp(data);
     }
   });
 
@@ -102,12 +128,15 @@
     && !e.target.classList.contains('nonbookable')) {
       const serviceId = e.target.dataset.serviceId;
       const sessionId = e.target.dataset.sessionId;
+      const startDate = e.target.dataset.startDate;
+      const endDate = e.target.dataset.endDate;
 
       window.parent.postMessage({
         type: 'REQ_BOOK_CLS',
         data: {
-          serviceId: serviceId,
           sessionId: sessionId,
+          startDate: startDate,
+          endDate: endDate,
           timeZone: "Europe/London",
         }
       }, '*');
@@ -196,8 +225,7 @@
             <span>${WEEKDAY_LABEL[labelIndex]}</span>
             <span>${date}</span>
           </div>
-          <div class="service" data-date=${date}>
-          </div>
+          <div class="service" data-date=${date}>No service</div>
         </div>
         `;
         labelIndex++;
@@ -330,7 +358,7 @@
     const select = document.getElementById("serviceSelect");
 
     if (data.length != 0) {
-      document.getElementById("errorMsg").style.display = "none";
+      document.getElementById("errorMsg").classList.add("hidden");
 
       data.forEach((s) => {
         const opt = document.createElement("option");
@@ -340,8 +368,22 @@
       });
     } else {
       document.getElementById("errorMsg").value = "No available service. Please contact us.";
-      document.getElementById("errorMsg").style.display = "block";
+      document.getElementById("errorMsg").classList.remove("hidden");
     }
+  }
+
+  /**
+   * Renders pop up modal for customers to choose variants of a service.
+   * 
+   * @
+   * Send back a message of {type: "CHOICE_TRUE", data: durationInMinutes(int)} if a choice is made,
+   * or a message of {type: "CHOICE_FALSE", data: ""} if not
+   */
+  function renderPopUp(data) {
+    const modal = document.getElementById("modal");
+    const modalOptions = document.getElementById("modalOptions");
+
+    
   }
 
   /* Helper functions */

@@ -1,13 +1,19 @@
 // Doc: Single-service booking flow: https://dev.wix.com/docs/api-reference/business-solutions/bookings/flow-single-service-booking
 // Never edit the following code unless you understand what you're doing. 
 
-import { availabilityTimeSlots, serviceOptionsAndVariants, eventTimeSlots, services } from "@wix/bookings";
-import { forms } from "@wix/forms";
+import { availabilityTimeSlots, eventTimeSlots, services, availabilityCalendar } from "@wix/bookings";
 import wixLocation from "wix-location";
 import wixData from "wix-data";
+import { getVariantsByServiceId } from 'backend/new-module.web';
+
 
 $w.onReady(async function () {
-	console.log("Parent v2.0.2. Test everything before step 5. Debugging service slots.");
+	console.log("Parent v2.0.7.2. Get session id for mat classes.");
+
+	$w("#testButton").onClick(async () => {
+
+		// const res = await getVariantsByServiceId("6428a612-bd72-426b-bbc4-d9116078c9f6");
+	});
 
 	// Step 1: fetch and display service list.
 	const services = await getAllServices();
@@ -23,23 +29,51 @@ $w.onReady(async function () {
 		});
 	}
 	
-	// Step 2: display service variant.
-	// To be developed for appointments
-
-	
 	$w("#embedCal").onMessage(async (event) => {
 		const { type, data } = event.data;
 
-		// Step 3: display slots. Relies on the embedded part.
+		// Step 2: display slots. Relies on the embedded part.
 		if (type == "GET_APPO_SLOTS") {
-			const slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
+			// Step 3: display service variants first for appointments.
+			let useDefaultVariant = true;
+			let variants = []; // to store {duration: int, price: int} objects.
+			const serviceVariants = await getVariantsByServiceId(data.serviceId);
+
+			if (serviceVariants != -1 && serviceVariants.variantType == "DURATION") {
+				useDefaultVariant = false;
+			}
+
+			// If we don't use default variant, repack the variants into a lighter version,
+			// and call showVariants() to display them and get customer's choice.
+			if (!useDefaultVariant) {
+				serviceVariants.variantList.forEach((v) => {
+					const variantPricePair = { 
+						duration: v.choices[0].duration.minutes,
+						price: v.price.value,
+					};
+					variants.push(variantPricePair);
+				});
+
+				try {
+					await showVariants(variants);
+				} catch(err) {
+					useDefaultVariant = true;
+				}
+			}
+			
+			let slots;
+			if (useDefaultVariant) {
+				slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
+			} else {
+				slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate,
+				data.durationInMinutes); // customerChoices
+			}
 			
 			if (slots != -1) {
 				$w('#embedCal').postMessage({
 					type: "SET_APPO_SLOTS",
 					data: slots
 				})
-				console.log("Parent: SET_APPO_SLOTS is fired."); // for test
 			} else {
 				$w('#embedCal').postMessage({
 					type: "ERROR_GET_SLOTS",
@@ -64,44 +98,24 @@ $w.onReady(async function () {
 			}
 		}
 
-		// Step 4: display booking form. Relies on the embedded part.
+		// Step 4: jump to the booking form. Let wix handle the rest.
 		if (type == "REQ_BOOK_APPO") {
-			const formId = await getFormId(data.serviceId);
-			let res = -1;
-
-			if (formId != -1) {
-				res = await getFormSummary(formId);
-			} else {
-				console.log("Failed to get the form id for service: " + data.serviceId + ".");
-			}
-
-			if (res != -1) {
-				console.log(res);
-			} else {
-				console.log("Failed to get response for the form.");
-			}
+			const queryParams = `?bookings_serviceId=${data.serviceId}&bookings_resourceId=${data.staffId}&bookings_startDate=${encodeURIComponent(data.startDate)}&bookings_endDate=${encodeURIComponent(data.endDate)}&bookings_timezone=${data.timeZone}`;
+			const nextUrl = "/booking-form" + queryParams;
+			wixLocation.to(nextUrl);
 		}
 
 		if (type == "REQ_BOOK_CLS") {
-			const formId = await getFormId(data.serviceId);
-			let res = -1;
-
-			if (formId != -1) {
-				res = await getFormSummary(formId);
+			const session = await getSessionId(data.serviceId, data.startDate, data.endDate);
+			if (session != -1 && session.bookable == true) {
+				const queryParams = `?bookings_sessionId=${session.sessionId}&bookings_timezone=${data.timeZone}`;
+				const nextUrl = "/booking-form" + queryParams;
+				wixLocation.to(nextUrl);
 			} else {
-				console.log("Failed to get the form id for service: " + data.serviceId + ".");
-			}
-
-			if (res != -1) {
-				console.log(res);
-			} else {
-				console.log("Failed to get response for the form.");
+				console.log("Unable to book.");
 			}
 		}
 	});
-
-	
-
 })
 
 /* Major functions */
@@ -148,15 +162,29 @@ async function getAllServices() {
  * Returns an array of service objects, or -1 if an error occurs.
  *
  */
-async function listAppoSlots(serviceId, startDate, endDate) {
-	const options = {
-		serviceId: serviceId,
-		fromLocalDate: startDate, // "2025-09-15T00:00:00"
-		toLocalDate: endDate,
-		timeZone: "Europe/London",
-		includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
-		bookable: true,
-	};
+async function listAppoSlots(serviceId, startDate, endDate, durationInMinutes = null) {
+	let options;
+	if (durationInMinutes == null) {
+		options = {
+			serviceId: serviceId,
+			fromLocalDate: startDate, // "2025-09-15T00:00:00"
+			toLocalDate: endDate,
+			timeZone: "Europe/London",
+			includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
+			bookable: true,
+		};
+	} else {
+		options = {
+			serviceId: serviceId,
+			fromLocalDate: startDate, // "2025-09-15T00:00:00"
+			toLocalDate: endDate,
+			timeZone: "Europe/London",
+			includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
+			bookable: true,
+			customerChoices: { durationInMinutes: durationInMinutes },
+		};
+	}
+	
 
 	try {
 		const response = await availabilityTimeSlots.listAvailabilityTimeSlots(options);
@@ -210,38 +238,70 @@ async function listClassSlots(serviceId, startDate, endDate) {
 }
 
 /**
- * Get form summary for a given formId (bound to a service)
+ * Return session id for a given class slot.
  *
  * @async
- * @returns {Promise<Object|number>}
- * Returns the raw response from API, or -1 if an error occurs.
+ * @param {string} serviceId - the service ID of the class
+ * @param {Date} startDate - the starting datetime for the slot
+ * @param {Date} endDate - the ending datetime for the slot
+ * @returns {Promise<{sessionId: string, bookable: boolean}|number>}
+ * Returns a session id, or -1 if an error occurs.
  *
  */
-async function getFormSummary(formId) {
+async function getSessionId(serviceId, startDate, endDate) {
+	const query = {
+		filter: {
+			serviceId: serviceId,
+			startDate: startDate.toISOString(),
+			endDate: endDate.toISOString(),
+		},
+	};
+
 	try {
-		const response = await forms.getFormSummary(formId);
-		return response;
-  	} catch(err) {
+		const { availabilityEntries } = await availabilityCalendar.queryAvailability(query);
+		const session = { 
+			sessionId: availabilityEntries[0].slot.sessionId, 
+			bookable: availabilityEntries[0].bookable 
+		};
+		return session;
+	} catch(err) {
 		console.error(err);
 		return -1;
 	}
 }
 
-/* Helper functions */
 /**
- * Get the form id for a given service id.
+ * Pop up a box in embedded part for customers to choose service variant 
+ * (different durations and prices).
  *
- * @async
- * @returns {Promise<string|number>} The form ID string, or -1 if an error occurs.
+ * @param {array} variants - an array of {duration: int, price: int} objects
+ * @returns Promise<duration: int|error>
+ * Returns the chosen duration time, or an error if customer didn't make any choice.
  *
  */
-async function getFormId(serviceId) {
-	try {
-		const service = await services.getService(serviceId);
-  		const formId = service.form.id;
-		return formId; 
-	} catch(err) {
-		console.error(err);
-		return -1;
-	}	
+
+function showVariants(variants) {
+	return new Promise((resolve, reject) => {
+		const embed = $w("#embedCal");
+		let settled = false;
+
+		embed.onMessage((event) => {
+			const { type, data } = event.data;
+			if (settled) return;
+			settled = true;
+
+			if (type == "CHOICE_TRUE") {
+				resolve(data);
+			} else {
+				reject(new Error("No choice is provided."));
+			}
+		});
+
+		embed.postMessage({
+			type: "SHOW_APPO_VARIANTS",
+			data: variants
+		});
+	});
 }
+
+/* Helper functions */
