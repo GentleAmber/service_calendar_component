@@ -98,10 +98,6 @@
     if (type == "SET_CLS_SLOTS") {
       renderClassSlots(data);
     }
-
-    if (type == "SHOW_APPO_VARIANTS") {
-      renderPopUp(data);
-    }
   });
 
   // Listeners for booking ----------------
@@ -185,7 +181,6 @@
       requestServiceSlots(serviceId);
     } 
   })
-
 
   /* Major functions */
   /**
@@ -370,20 +365,6 @@
       document.getElementById("errorMsg").value = "No available service. Please contact us.";
       document.getElementById("errorMsg").classList.remove("hidden");
     }
-  }
-
-  /**
-   * Renders pop up modal for customers to choose variants of a service.
-   * 
-   * @
-   * Send back a message of {type: "CHOICE_TRUE", data: durationInMinutes(int)} if a choice is made,
-   * or a message of {type: "CHOICE_FALSE", data: ""} if not
-   */
-  function renderPopUp(data) {
-    const modal = document.getElementById("modal");
-    const modalOptions = document.getElementById("modalOptions");
-
-    
   }
 
   /* Helper functions */

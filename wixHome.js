@@ -1,11 +1,9 @@
 // Doc: Single-service booking flow: https://dev.wix.com/docs/api-reference/business-solutions/bookings/flow-single-service-booking
 // Never edit the following code unless you understand what you're doing. 
 
-import { availabilityTimeSlots, eventTimeSlots, services, availabilityCalendar } from "@wix/bookings";
+import { availabilityTimeSlots, eventTimeSlots, availabilityCalendar } from "@wix/bookings";
 import wixLocation from "wix-location";
 import wixData from "wix-data";
-import { getVariantsByServiceId } from 'backend/new-module.web';
-
 
 $w.onReady(async function () {
 	console.log("Parent v2.0.7.2. Get session id for mat classes.");
@@ -34,40 +32,8 @@ $w.onReady(async function () {
 
 		// Step 2: display slots. Relies on the embedded part.
 		if (type == "GET_APPO_SLOTS") {
-			// Step 3: display service variants first for appointments.
-			let useDefaultVariant = true;
-			let variants = []; // to store {duration: int, price: int} objects.
-			const serviceVariants = await getVariantsByServiceId(data.serviceId);
-
-			if (serviceVariants != -1 && serviceVariants.variantType == "DURATION") {
-				useDefaultVariant = false;
-			}
-
-			// If we don't use default variant, repack the variants into a lighter version,
-			// and call showVariants() to display them and get customer's choice.
-			if (!useDefaultVariant) {
-				serviceVariants.variantList.forEach((v) => {
-					const variantPricePair = { 
-						duration: v.choices[0].duration.minutes,
-						price: v.price.value,
-					};
-					variants.push(variantPricePair);
-				});
-
-				try {
-					await showVariants(variants);
-				} catch(err) {
-					useDefaultVariant = true;
-				}
-			}
 			
-			let slots;
-			if (useDefaultVariant) {
-				slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
-			} else {
-				slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate,
-				data.durationInMinutes); // customerChoices
-			}
+			const slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
 			
 			if (slots != -1) {
 				$w('#embedCal').postMessage({
@@ -162,29 +128,18 @@ async function getAllServices() {
  * Returns an array of service objects, or -1 if an error occurs.
  *
  */
-async function listAppoSlots(serviceId, startDate, endDate, durationInMinutes = null) {
+async function listAppoSlots(serviceId, startDate, endDate) {
 	let options;
-	if (durationInMinutes == null) {
-		options = {
-			serviceId: serviceId,
-			fromLocalDate: startDate, // "2025-09-15T00:00:00"
-			toLocalDate: endDate,
-			timeZone: "Europe/London",
-			includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
-			bookable: true,
-		};
-	} else {
-		options = {
-			serviceId: serviceId,
-			fromLocalDate: startDate, // "2025-09-15T00:00:00"
-			toLocalDate: endDate,
-			timeZone: "Europe/London",
-			includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
-			bookable: true,
-			customerChoices: { durationInMinutes: durationInMinutes },
-		};
-	}
-	
+
+  options = {
+    serviceId: serviceId,
+    fromLocalDate: startDate, // "2025-09-15T00:00:00"
+    toLocalDate: endDate,
+    timeZone: "Europe/London",
+    includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
+    bookable: true,
+    customerChoices: { durationInMinutes: durationInMinutes },
+  };
 
 	try {
 		const response = await availabilityTimeSlots.listAvailabilityTimeSlots(options);
@@ -269,39 +224,4 @@ async function getSessionId(serviceId, startDate, endDate) {
 		return -1;
 	}
 }
-
-/**
- * Pop up a box in embedded part for customers to choose service variant 
- * (different durations and prices).
- *
- * @param {array} variants - an array of {duration: int, price: int} objects
- * @returns Promise<duration: int|error>
- * Returns the chosen duration time, or an error if customer didn't make any choice.
- *
- */
-
-function showVariants(variants) {
-	return new Promise((resolve, reject) => {
-		const embed = $w("#embedCal");
-		let settled = false;
-
-		embed.onMessage((event) => {
-			const { type, data } = event.data;
-			if (settled) return;
-			settled = true;
-
-			if (type == "CHOICE_TRUE") {
-				resolve(data);
-			} else {
-				reject(new Error("No choice is provided."));
-			}
-		});
-
-		embed.postMessage({
-			type: "SHOW_APPO_VARIANTS",
-			data: variants
-		});
-	});
-}
-
 /* Helper functions */
