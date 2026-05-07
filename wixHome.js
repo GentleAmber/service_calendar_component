@@ -1,15 +1,16 @@
 // Doc: Single-service booking flow: https://dev.wix.com/docs/api-reference/business-solutions/bookings/flow-single-service-booking
 // Never edit the following code unless you understand what you're doing. 
 
-import { availabilityTimeSlots, eventTimeSlots, availabilityCalendar } from "@wix/bookings";
+import { availabilityTimeSlots, eventTimeSlots, availabilityCalendar, serviceOptionsAndVariants, services } from "@wix/bookings";
 import wixLocation from "wix-location";
 import wixData from "wix-data";
+import wixLocationFrontend from "wix-location-frontend";
+
 
 $w.onReady(async function () {
 	console.log("Parent v2.0.7.2. Get session id for mat classes.");
 
 	$w("#testButton").onClick(async () => {
-
 		// const res = await getVariantsByServiceId("6428a612-bd72-426b-bbc4-d9116078c9f6");
 	});
 
@@ -31,15 +32,39 @@ $w.onReady(async function () {
 		const { type, data } = event.data;
 
 		// Step 2: display slots. Relies on the embedded part.
-		if (type == "GET_APPO_SLOTS") {
-			
+		if (type == "GET_APPO_SLOTS") {			
 			const slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
 			
 			if (slots != -1) {
-				$w('#embedCal').postMessage({
-					type: "SET_APPO_SLOTS",
-					data: slots
-				})
+				let showVariantHint = false;
+				let slug;
+				const hasVariants = await ifServiceHasVariants(data.serviceId);
+				console.log(`hasVariants: ${hasVariants}`)
+				if (hasVariants != -1 && hasVariants == true) {
+					slug = await getSlug(data.serviceId);
+					if (slug != -1) {
+						showVariantHint = true;
+					}
+				}
+
+				if (showVariantHint) {
+					const baseUrl = wixLocationFrontend.baseUrl;
+					const servicePage = baseUrl + "/service-page/" + slug;
+					console.log(`service page: ${servicePage}`);
+
+					$w('#embedCal').postMessage({
+						type: "SET_APPO_SLOTS_VARIANTS",
+						data: {
+							serviceUrl: servicePage, 
+							slots: slots
+						}
+					})
+				} else {
+					$w('#embedCal').postMessage({
+						type: "SET_APPO_SLOTS",
+						data: slots
+					})
+				}
 			} else {
 				$w('#embedCal').postMessage({
 					type: "ERROR_GET_SLOTS",
@@ -72,7 +97,7 @@ $w.onReady(async function () {
 		}
 
 		if (type == "REQ_BOOK_CLS") {
-			const session = await getSessionId(data.serviceId, data.startDate, data.endDate);
+			const session = await getSessionId(data.serviceId, new Date(data.startDate), new Date(data.endDate));
 			if (session != -1 && session.bookable == true) {
 				const queryParams = `?bookings_sessionId=${session.sessionId}&bookings_timezone=${data.timeZone}`;
 				const nextUrl = "/booking-form" + queryParams;
@@ -129,18 +154,15 @@ async function getAllServices() {
  *
  */
 async function listAppoSlots(serviceId, startDate, endDate) {
-	let options;
-
-  options = {
-    serviceId: serviceId,
-    fromLocalDate: startDate, // "2025-09-15T00:00:00"
-    toLocalDate: endDate,
-    timeZone: "Europe/London",
-    includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
-    bookable: true,
-    customerChoices: { durationInMinutes: durationInMinutes },
-  };
-
+	const options = {
+		serviceId: serviceId,
+		fromLocalDate: startDate, // "2025-09-15T00:00:00"
+		toLocalDate: endDate,
+		timeZone: "Europe/London",
+		includeResourceTypeIds: ["1cd44cf8-756f-41c3-bd90-3e2ffcaf1155"],
+		bookable: true,
+	};
+	
 	try {
 		const response = await availabilityTimeSlots.listAvailabilityTimeSlots(options);
 		const slots = response.timeSlots.map((s) => ({
@@ -168,7 +190,7 @@ async function listAppoSlots(serviceId, startDate, endDate) {
  */
 async function listClassSlots(serviceId, startDate, endDate) {
     const options = {
-		serviceId: serviceId,
+		serviceIds: [serviceId],
 		fromLocalDate: startDate, // "2025-09-15T00:00:00"
 		toLocalDate: endDate,
 		timeZone: "Europe/London",
@@ -183,7 +205,7 @@ async function listClassSlots(serviceId, startDate, endDate) {
 			bookable: s.bookable,
 			bookableCapacity: s.bookableCapacity,
 			staff: s.availableResources[0].resources[0].name,
-			sessionId: s.eventInfo.eventId
+			eventId: s.eventInfo.eventId, // different from session id
 		}));
 		return slots;
 	} catch(err) {
@@ -213,15 +235,69 @@ async function getSessionId(serviceId, startDate, endDate) {
 	};
 
 	try {
-		const { availabilityEntries } = await availabilityCalendar.queryAvailability(query);
-		const session = { 
-			sessionId: availabilityEntries[0].slot.sessionId, 
-			bookable: availabilityEntries[0].bookable 
-		};
-		return session;
+      const { availabilityEntries } = await availabilityCalendar.queryAvailability(query);
+	  const sessionId = availabilityEntries[0].slot.sessionId;
+	  const bookable = availabilityEntries[0].bookable;
+      return {
+		sessionId: sessionId,
+		bookable: bookable,
+	  };
+    } catch (error) {
+      console.error(error);
+	  return -1;
+    }
+}
+
+/**
+ * Return a boolean to reflect if there's variants for a given service id.
+ *
+ * @async
+ * @param {string} serviceId - the service ID
+ * @returns {Promise<boolean|number>}
+ * Returns true if the service has variants, false if not, and -1 for errors.
+ *
+ */
+async function ifServiceHasVariants(serviceId) {
+	try {
+		await serviceOptionsAndVariants.getServiceOptionsAndVariantsByServiceId(serviceId);
+		return true;
 	} catch(err) {
-		console.error(err);
+		if (err.details.applicationError.code.includes("NOT_FOUND")) {
+			return false;
+		}
 		return -1;
 	}
 }
+
+/**
+ * Return the active service slug for a given service id.
+ *
+ * @async
+ * @param {string} serviceId - the service ID
+ * @returns {Promise<string|number>}
+ * Returns the active service slug or -1 for errors.
+ *
+ */
+async function getSlug(serviceId) {
+  try {
+    const service = await services.getService(serviceId);
+	const slug = service.mainSlug.name;
+	return slug;
+  } catch (error) {
+    console.error(error);
+    return -1;
+  }
+}
 /* Helper functions */
+/**
+ * Return a Date object after adding {minutes} minutes to the passed {date} Date object.
+ *
+ * @param {Date} date - the old Date
+ * @param {number} minutes - the time diff in minutes. Can be negative.
+ * @returns {Date}
+ * Returns a new Date object after operating the minutes 
+ *
+ */
+function addMinutes(date, minutes) {
+    return new Date(date.getTime() + minutes*60000);
+}

@@ -1,6 +1,14 @@
 <style>
+  @import url("https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap");
+  
   #calendarBody {
     color: black;
+  }
+ .gelasio {
+    font-family: "Gelasio", serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
   }
   select {
     width: 100%; 
@@ -12,16 +20,11 @@
   }
 	.week-nav {
     display: flex; 
-    justify-content: space-between;
+    justify-content: center;
+    gap: 30px;
     align-items: center; 
-    margin-bottom: 12px;
+    margin-bottom: 30px;
     font-size: 14px;
-  }
-  .week-nav button {
-    padding: 6px 14px; 
-    border: 1px solid #ccc;
-    border-radius: 6px; 
-    background: #fff; cursor: pointer;
   }
   #errorMsg {
     color: red;
@@ -30,55 +33,67 @@
     display: none;
   }
   .nonbookable {
-    background-color: gray;
+    background-color: rgb(171, 169, 169);
   }
-  .modal {
-    position: absolute;
+  #calendarContainer {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
   }
+  .calendar-column {
+    text-align: center;
+  }
+  .service,.avai-service {
+    border: 0.5px solid #a4a4a4;
+    min-width: 110px;
+  }
+  .service.empty {
+    background-color: #e5e5e5;
+  }
+  .change-week {
+    border: none;
+    background-color: none;
+    cursor: pointer;
+  }
+  #currentWeekContainer {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  #currentWeek {
+    position: relative;
+    right: 100px;
+  }
+
 </style>
 
 <!-- calendar body -->
-<div id="calendarBody">
-  <div id="errorMsg">Unable to load services. Please refresh and try again.</div>
-  <select id="serviceSelect">
+<div id="calendarBody" class="gelasio">
+  <div id="errorMsg" class="hidden">Unable to load services. Please refresh and try again.</div>
+  <div id="hint" class="hidden"></div>
+  <select id="serviceSelect" class="gelasio">
     <option value="">-- Choose a service --</option>
   </select>
 
-  <div>
-    <button id="currentWeek">Current week</button>
+  <div id="currentWeekContainer">
+    <button id="currentWeek" class="change-week">Current week</button>
   </div>
 
   <div class="week-nav">
-    <button id="prevWeek">&larr; Previous week</button>
+    <button id="prevWeek" class="change-week">< Previous week</button>
     <span id="weekLabel"></span>
-    <button id="nextWeek">Next week &rarr;</button>
-  </div>
-
-  <div id="modal" class="modal hidden">
-    <button class="close-btn" id="modalCloseBtn">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
- 
-    <p class="heading">Choose your session</p>
-    <p class="sub">Select a duration that works for you</p>
- 
-    <div class="modal-options" id="modalOptions"></div>
- 
-    <button class="confirm-btn" id="confirmBtn">Confirm</button>
+    <button id="nextWeek" class="change-week">Next week ></button>
   </div>
 
   <div id="calendarContainer"></div>
 </div>
 
 <script>
-  console.log("Child v2.0.4. Test everything before step 5. Filled const services[].");
   const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var headerDate = new Date();
   var services = [];
 
-  renderCalendar();
+  renderCalendar();// Seems to have display bug. Not showing up upon page load.
 
   /* Listeners */
   // ** Main listener for messages from parent window ** ---------
@@ -93,10 +108,17 @@
 
     if (type == "SET_APPO_SLOTS") {
       renderAppoSlots(data);
+      removeHint();
     }
 
     if (type == "SET_CLS_SLOTS") {
       renderClassSlots(data);
+      removeHint();
+    }
+
+    if (type == "SET_APPO_SLOTS_VARIANTS") {
+      renderAppoSlots(data.slots);
+      renderHint(data.serviceUrl);
     }
   });
 
@@ -123,14 +145,13 @@
     if (e.target.classList.contains('book-cls')
     && !e.target.classList.contains('nonbookable')) {
       const serviceId = e.target.dataset.serviceId;
-      const sessionId = e.target.dataset.sessionId;
       const startDate = e.target.dataset.startDate;
       const endDate = e.target.dataset.endDate;
 
       window.parent.postMessage({
         type: 'REQ_BOOK_CLS',
         data: {
-          sessionId: sessionId,
+          serviceId: serviceId,
           startDate: startDate,
           endDate: endDate,
           timeZone: "Europe/London",
@@ -220,7 +241,7 @@
             <span>${WEEKDAY_LABEL[labelIndex]}</span>
             <span>${date}</span>
           </div>
-          <div class="service" data-date=${date}>No service</div>
+          <div class="service empty" data-date=${date}>No service</div>
         </div>
         `;
         labelIndex++;
@@ -250,7 +271,6 @@
       }, '*');
 
     } else if (serviceType == "CLASS") {
-      console.log(`queried service id: ${serviceId}`)
       window.parent.postMessage({
         type: "GET_CLS_SLOTS",
         data: {
@@ -266,6 +286,8 @@
    * Renders appointment slots based on the data passed from parent window.
    */
   function renderAppoSlots(data) {
+    clearPrevSlots();
+
     let rawHtml = ``;
     const select = document.getElementById('serviceSelect');
     const serviceName = select.options[select.selectedIndex].text;
@@ -295,6 +317,7 @@
         `;
       }
 
+      target.classList.remove("empty");
       target.innerHTML = rawHtml;
     });
   }
@@ -303,6 +326,8 @@
    * Renders class slots based on the data passed from parent window.
    */
   function renderClassSlots(data) {
+    clearPrevSlots();
+
     let rawHtml = ``;
     const select = document.getElementById('serviceSelect');
     const serviceName = select.options[select.selectedIndex].text;
@@ -333,7 +358,6 @@
         <p class='capacity'>${capacityText}</p>
         <button class='${buttonClass}'
         data-service-id='${serviceId}'
-        data-session-id='${s.sessionId}'
         data-start-date='${s.startDate}'
         data-end-date='${s.endDate}'>
         Book
@@ -341,6 +365,7 @@
       </div>
       `;
 
+      target.classList.remove("empty");
       target.innerHTML = rawHtml;
     });
   }
@@ -362,9 +387,36 @@
         select.appendChild(opt);
       });
     } else {
-      document.getElementById("errorMsg").value = "No available service. Please contact us.";
+      document.getElementById("errorMsg").value = "Error: No service is found. Please contact us to book.";
       document.getElementById("errorMsg").classList.remove("hidden");
     }
+  }
+
+  /**
+   * Take a service page url for a service, and render a hint with a hyperlink 
+   * 
+   */
+  function renderHint(data) {
+    const hintHtml = `
+    This service has other treatment options, to view them, please use the 
+    <a target='_blank' href='${data}'>service page</a> to book.
+    `;
+
+    const hint = document.getElementById("hint");
+    hint.innerHTML = hintHtml;
+    hint.classList.remove("hidden");
+  }
+
+  function removeHint() {
+    document.getElementById("hint").classList.add("hidden");
+  }
+
+  function clearPrevSlots() {
+    document.querySelectorAll('div.service').forEach(el => {
+      el.innerHTML = 'No service';
+      if (!el.classList.contains('empty')) el.classList.add('empty');
+
+    });
   }
 
   /* Helper functions */
