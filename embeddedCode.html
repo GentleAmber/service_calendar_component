@@ -2,22 +2,38 @@
   @import url("https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap");
   
   #calendarBody {
-    color: black;
+    --service-box-height: 100px;
+    --box-main-background: 217, 173, 89;
+    --font-color-major: black;
+    --font-color-secondary: #757272;
+    
+
+    font-size: 0.95rem;
+    color: var(--font-color-secondary);
+    display: flex;
+    flex-direction: column;
+    place-items: center;
+  }
+  #calendarBody p {
+    margin: 0.3rem 0;
+  }
+  #calendarTitle {
+    font-size: 1.1rem;
+    font-weight: 550;
+    color: var(--font-color-major);
+    text-align: center;
+    padding-bottom: 0.7rem;
+    border-bottom: 0.8px solid var(--font-color-secondary);
+    max-width: 1200px;
+    min-width: 600px;
   }
  .gelasio {
     font-family: "Gelasio", serif;
     font-optical-sizing: auto;
-    font-weight: 500;
+    font-weight: 400;
     font-style: normal;
   }
-  select {
-    width: 100%; 
-    padding: 10px; 
-    font-size: 16px;
-    margin-bottom: 16px; 
-    border: 1px solid #ccc; 
-    border-radius: 6px;
-  }
+  
 	.week-nav {
     display: flex; 
     justify-content: center;
@@ -26,33 +42,92 @@
     margin-bottom: 30px;
     font-size: 14px;
   }
-  #errorMsg {
+  .error {
     color: red;
+  }
+  #hint {
+    color: rgb(25, 96, 228);
   }
   .hidden {
     display: none;
   }
-  .nonbookable {
-    background-color: rgb(171, 169, 169);
+  
+  #weekLabel {
+    color: var(--font-color-major);
+  }
+  .filter-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1rem 0; 
+  }
+  .selector {
+    padding: 10px; 
+    font-size: 1rem;
+    border: none;
   }
   #calendarContainer {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: center;
+    align-items: stretch;
+    
   }
   .calendar-column {
     text-align: center;
+    display: flex;
+    flex-direction: column;
   }
-  .service,.avai-service {
+  .date-label {
+    margin-bottom: 15px;
+  }
+  .service {
+    min-height: var(--service-box-height);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-grow: 1;
     border: 0.5px solid #a4a4a4;
     min-width: 110px;
+  }
+  .avai-service {
+    border-bottom: 0.5px solid #a4a4a4;
   }
   .service.empty {
     background-color: #e5e5e5;
   }
+  .avai-service {
+    padding: 10px;
+    color: var(--font-color-major);
+    background-color: white;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+  }
+  .avai-service div + div {
+    margin-top: 0.4rem;
+    color: var(--font-color-secondary);
+    font-size: 0.9em;
+  }
+  .avai-service > button {
+    font-size: 1rem;
+  }
+  .avai-service button {
+    align-self: stretch;
+    color: white;
+    margin-top: 0.5rem;
+    padding: 0.3rem 0;
+    /* border: 0.5px solid #a4a4a4; */
+    border: none;
+    background-color: rgb(var(--box-main-background));
+  }
+  button.nonbookable {
+    background-color: rgb(144, 142, 142);
+    color: white;
+  }
   .change-week {
     border: none;
-    background-color: none;
+    background-color: transparent;
     cursor: pointer;
   }
   #currentWeekContainer {
@@ -68,23 +143,37 @@
 </style>
 
 <!-- calendar body -->
+<div id="testModule">
+  <button id="setServices">Set services</button>
+  <button id="setSlot">Set slots</button>
+</div>
 <div id="calendarBody" class="gelasio">
-  <div id="errorMsg" class="hidden">Unable to load services. Please refresh and try again.</div>
+  <div id="calendarTitle"><h3>Book Now</h3></div>
+  <div id="errorMsg" class="hidden error"><p>Unable to load services. Please refresh and try again.</p></div>
   <div id="hint" class="hidden"></div>
-  <select id="serviceSelect" class="gelasio">
-    <option value="">-- Choose a service --</option>
-  </select>
+  <div class="filter-wrapper">
+    <span>Filter by:</span>
+    <select id="serviceSelect" class="gelasio selector">
+      <option value="">-- Choose a service --</option>
+    </select>
+    <span>|</span>
+    <select id="staffSelect" class="gelasio selector">
+      <option value="">-- Choose a staff --</option>
+    </select>
+  </div>
+  
 
   <div id="currentWeekContainer">
     <button id="currentWeek" class="change-week">Current week</button>
   </div>
 
   <div class="week-nav">
-    <button id="prevWeek" class="change-week">< Previous week</button>
+    <button id="prevWeek" class="change-week">< Previous</button>
     <span id="weekLabel"></span>
-    <button id="nextWeek" class="change-week">Next week ></button>
+    <button id="nextWeek" class="change-week">Next ></button>
   </div>
 
+  <div id="errorMsg2" class="hidden error">Unable to load slots. Please refresh and try again.</div>
   <div id="calendarContainer"></div>
 </div>
 
@@ -99,6 +188,7 @@
   // ** Main listener for messages from parent window ** ---------
   // Should always check the received array's length 
   window.addEventListener("message", (event) => {
+    console.log("Received a message.")
     const { type, data } = event.data;
 
     if (type == "SET_SERVICES") {
@@ -109,16 +199,32 @@
     if (type == "SET_APPO_SLOTS") {
       renderAppoSlots(data);
       removeHint();
+      toggleErrorGetSlots({showErr: false, message: ""});
     }
 
     if (type == "SET_CLS_SLOTS") {
       renderClassSlots(data);
       removeHint();
+
+      toggleErrorGetSlots({showErr: false, message: ""});
     }
 
     if (type == "SET_APPO_SLOTS_VARIANTS") {
       renderAppoSlots(data.slots);
       renderHint(data.serviceUrl);
+      toggleErrorGetSlots({showErr: false, message: ""});
+    }
+
+    if (type == "ERROR_GET_SERVICES") {
+      showErrorGetServices(1);
+    }
+
+    if (type == "ERROR_GET_SLOTS") {
+      toggleErrorGetSlots({showErr: true, message: "Unable to load slots. Please refresh and try again."});
+    }
+
+    if (type == "ERROR_BOOK_CLS") {
+      toggleErrorGetSlots({showErr: true, message: "Unable to book the slot with this plug-in. Please use the Booking page instead: https://www.blueskypilates.co.uk/book-online"});
     }
   });
 
@@ -201,6 +307,43 @@
     if (serviceId != "") {
       requestServiceSlots(serviceId);
     } 
+  })
+
+  //////////////For test purpose. Need to be deleted in production
+  document.getElementById("setSlot").addEventListener('click', () => {
+    // startDate: s.localStartDate,
+    //         endDate: s.localEndDate,
+    //         location: s.location.name,
+    //         staffList
+    window.postMessage({
+      type: "SET_APPO_SLOTS",
+      data: [
+        {startDate: "2026-05-11T15:30:00", endDate: "2026-05-11T16:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
+        {startDate: "2026-05-11T16:30:00", endDate: "2026-05-11T17:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}, {name: "Karen", id: "9304"}]},
+        {startDate: "2026-05-11T17:30:00", endDate: "2026-05-11T18:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
+      ]
+    })
+  })
+  
+  document.getElementById("setServices").addEventListener('click', () => {
+    // startDate: s.localStartDate,
+    //         endDate: s.localEndDate,
+    //         location: s.location.name,
+    //         staffList
+    window.postMessage({
+      type: "SET_SERVICES",
+      data: [
+        {id: "23lkjds09klxz", name: "Fundamental Class", serviceType: "Class"},
+        {id: "523kjds09klxz", name: "Mat Class", serviceType: "Class"},
+        {id: "23lkADSr9klxz", name: "Studio Circuits", serviceType: "Class"},
+        {id: "9034kjds09klxz", name: "One-2-one Studio", serviceType: "Appointment"},
+        {id: "f0f48jds09klxz", name: "Deep Tissue Massage", serviceType: "Appointment"},
+        {id: "f0f48fes09klxz", name: "Brazilian Lymphatic Drainage", serviceType: "Appointment"},
+        {id: "f0f456klxz", name: "Reflexology Foot Massage", serviceType: "Appointment"},
+        {id: "f0ff324534klxz", name: "Swedish Massage", serviceType: "Appointment"},
+        {id: "f0ff324t4353lxz", name: "Aura Cleansing using tuning forks", serviceType: "Appointment"},
+      ]
+    })
   })
 
   /* Major functions */
@@ -302,11 +445,15 @@
       for (let i = 1; i <= s.staffList.length; i++){
         rawHtml += `
         <div class='avai-service avai-appo'>
-          <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
-          <p class='service-title'>${serviceName}</p>
-          <p class='staff'>${s.staffList[i-1].name}</p>
-          <p class='duration'>${durationFormatted}</p>
-          <button class='book-appo book-service'
+          <div class='service-main-info'>
+            <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+            <p class='service-title'>${serviceName}</p>
+          </div>
+          <div class='service-sec-info'>
+            <p class='staff'>${s.staffList[i-1].name}</p>
+            <p class='duration'>${durationFormatted}</p>
+          </div>
+          <button class='book-appo book-service gelasio'
           data-service-id='${serviceId}'
           data-staff-id='${s.staffList[i-1]._id}'
           data-start-date='${s.startDate}'
@@ -346,16 +493,22 @@
 
       const buttonClass = 
       s.bookable ? 
-      "book-cls book-service" : 
-      "nonbookable book-cls book-service";
+      "book-cls book-service gelasio" : 
+      "nonbookable book-cls book-service gelasio";
 
       rawHtml += `
       <div class='avai-service avai-cls'>
-        <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
-        <p class='service-title'>${serviceName}</p>
-        <p class='staff'>${s.staff}</p>
-        <p class='duration'>${durationFormatted}</p>
-        <p class='capacity'>${capacityText}</p>
+        <div class='service-main-info'>
+          <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+          <p class='service-title'>${serviceName}</p>
+        </div>
+        <div class='service-sec-info'>
+          <p class='staff'>${s.staff}</p>
+          <p class='duration'>${durationFormatted}</p>
+        </div>
+        <div class='service-thi-info'>
+          <p class='capacity'>${capacityText}</p>
+        </div>
         <button class='${buttonClass}'
         data-service-id='${serviceId}'
         data-start-date='${s.startDate}'
@@ -376,9 +529,10 @@
    */
   function renderDropdown(data) {
     const select = document.getElementById("serviceSelect");
+    const errorMsg = document.getElementById("errorMsg");
 
     if (data.length != 0) {
-      document.getElementById("errorMsg").classList.add("hidden");
+      errorMsg.classList.add("hidden");
 
       data.forEach((s) => {
         const opt = document.createElement("option");
@@ -387,9 +541,29 @@
         select.appendChild(opt);
       });
     } else {
-      document.getElementById("errorMsg").value = "Error: No service is found. Please contact us to book.";
-      document.getElementById("errorMsg").classList.remove("hidden");
+      errorMsg.value = "No service is found. Please contact us to book.";
+      errorMsg.classList.remove("hidden");
     }
+  }
+
+  function showErrorGetServices() {
+    const errorMsg = document.getElementById("errorMsg");
+
+    errorMsg.value = "Unable to load services. Please refresh and try again.";
+    errorMsg.classList.remove("hidden");
+  }
+
+  function toggleErrorGetSlots(params) {
+    const errorMsg = document.getElementById("errorMsg2");
+    const { showErr, message } = params;
+    
+    if (showErr) {
+      if (errorMsg.classList.contains("hidden")) errorMsg.classList.remove("hidden");
+      if (message != "") errorMsg.value = message;
+    } else {
+      if (!errorMsg.classList.contains("hidden")) errorMsg.classList.add("hidden");
+    }
+    
   }
 
   /**
@@ -398,8 +572,8 @@
    */
   function renderHint(data) {
     const hintHtml = `
-    This service has other treatment options, to view them, please use the 
-    <a target='_blank' href='${data}'>service page</a> to book.
+    <p>This service has other treatment options, to view them, please use the 
+    <a target='_blank' href='${data}'>service page</a> to book.</p>
     `;
 
     const hint = document.getElementById("hint");

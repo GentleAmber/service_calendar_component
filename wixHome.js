@@ -8,12 +8,6 @@ import wixLocationFrontend from "wix-location-frontend";
 
 
 $w.onReady(async function () {
-	console.log("Parent v2.0.7.2. Get session id for mat classes.");
-
-	$w("#testButton").onClick(async () => {
-		// const res = await getVariantsByServiceId("6428a612-bd72-426b-bbc4-d9116078c9f6");
-	});
-
 	// Step 1: fetch and display service list.
 	const services = await getAllServices();
 	if (services != -1) {
@@ -36,10 +30,10 @@ $w.onReady(async function () {
 			const slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
 			
 			if (slots != -1) {
+				// // Step 3: check if the service has variants, show hint if it has.
 				let showVariantHint = false;
 				let slug;
 				const hasVariants = await ifServiceHasVariants(data.serviceId);
-				console.log(`hasVariants: ${hasVariants}`)
 				if (hasVariants != -1 && hasVariants == true) {
 					slug = await getSlug(data.serviceId);
 					if (slug != -1) {
@@ -50,7 +44,6 @@ $w.onReady(async function () {
 				if (showVariantHint) {
 					const baseUrl = wixLocationFrontend.baseUrl;
 					const servicePage = baseUrl + "/service-page/" + slug;
-					console.log(`service page: ${servicePage}`);
 
 					$w('#embedCal').postMessage({
 						type: "SET_APPO_SLOTS_VARIANTS",
@@ -73,6 +66,7 @@ $w.onReady(async function () {
 			}
 		}
 
+		// There's no variants for classes, so just send available slots.
 		if (type == "GET_CLS_SLOTS") {
 			const slots = await listClassSlots(data.serviceId, data.startDate, data.endDate);
 
@@ -103,7 +97,10 @@ $w.onReady(async function () {
 				const nextUrl = "/booking-form" + queryParams;
 				wixLocation.to(nextUrl);
 			} else {
-				console.log("Unable to book.");
+				$w("#embedCal").postMessage({
+					type: "ERROR_BOOK_CLS",
+					data: {}
+				});
 			}
 		}
 	});
@@ -289,15 +286,3 @@ async function getSlug(serviceId) {
   }
 }
 /* Helper functions */
-/**
- * Return a Date object after adding {minutes} minutes to the passed {date} Date object.
- *
- * @param {Date} date - the old Date
- * @param {number} minutes - the time diff in minutes. Can be negative.
- * @returns {Date}
- * Returns a new Date object after operating the minutes 
- *
- */
-function addMinutes(date, minutes) {
-    return new Date(date.getTime() + minutes*60000);
-}
