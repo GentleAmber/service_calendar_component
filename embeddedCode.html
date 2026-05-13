@@ -2,27 +2,44 @@
   @import url("https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap");
   
   #calendarBody {
-    --service-box-height: 100px;
+    --service-box-min-height: 100px;
+    --service-box-width: 150px;
     --box-main-background: 217, 173, 89;
     --font-color-major: black;
     --font-color-secondary: #757272;
+    --font-size: 18px;
+    --font-size-secondary: 16px;
+    --font-size-important: 22px;
     
-
-    font-size: 0.95rem;
+    font-size: var(--font-size);
     color: var(--font-color-secondary);
     display: flex;
     flex-direction: column;
     place-items: center;
   }
+  @media (width <= 1280px) {
+    #calendarBody {
+      --service-box-width: 120px;
+    }
+  }
+  @media (width <= 960px) {
+    #calendarBody {
+      --service-box-width: 100px;
+    }
+  }
+  /* Layout for phones */
+  @media (width <= 800px) {
+    
+  }
   #calendarBody p {
-    margin: 0.3rem 0;
+    margin: 0.3em 0;
   }
   #calendarTitle {
-    font-size: 1.1rem;
+    font-size: var(--font-size-important);
     font-weight: 550;
     color: var(--font-color-major);
     text-align: center;
-    padding-bottom: 0.7rem;
+    padding-bottom: 0.7em;
     border-bottom: 0.8px solid var(--font-color-secondary);
     max-width: 1200px;
     min-width: 600px;
@@ -40,7 +57,6 @@
     gap: 30px;
     align-items: center; 
     margin-bottom: 30px;
-    font-size: 14px;
   }
   .error {
     color: red;
@@ -56,22 +72,97 @@
     color: var(--font-color-major);
   }
   .filter-wrapper {
+    --font-size-filter: var(--font-size-secondary);
+
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 1rem 0; 
+    margin: 1em 0; 
+    font-size: var(--font-size-filter);
   }
   .selector {
-    padding: 10px; 
-    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
     border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: var(--font-size-filter);
   }
+  .custom-select-wrapper {
+    position: relative;
+  }
+  .selector-arrow {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: rotate(45deg);
+    margin-bottom: 3px;
+    transition: transform 0.2s, margin-bottom 0.2s;
+  }
+  .arrow-left, .arrow-right {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    vertical-align: middle;
+    margin-bottom: 1px;
+  }
+  .arrow-left  { transform: rotate(135deg); }
+  .arrow-right { transform: rotate(-45deg); }
+  .selector[aria-expanded="true"] .selector-arrow {
+    transform: rotate(225deg);
+    margin-bottom: -3px;
+  }
+  .selector-list {
+    --li-padding-hori: 0.5em;
+    --li-padding-ver: 1em;
+
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    z-index: 100;
+    background: white;
+    border: 1px solid #ccc;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-width: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    color: var(--font-color-major);
+  }
+  .selector-list.scrollable {
+    max-height: calc(5 * calc(var(--font-size-filter) + 2 * var(--li-padding-hori)));
+    overflow-y: auto;
+  }
+  .selector-list li {
+    padding: var(--li-padding-hori) var(--li-padding-ver);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .selector-list li:hover {
+    background: #f9ecc9;
+  }
+  .selector-list li.selected {
+    background: rgba(181, 141, 68, 0.25)
+  }
+  .selector-list p {
+    text-align: center;
+  }
+
   #calendarContainer {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: stretch;
     
+  }
+  #calendarContainer.hidden {
+    display: none;
   }
   .calendar-column {
     text-align: center;
@@ -82,19 +173,21 @@
     margin-bottom: 15px;
   }
   .service {
-    min-height: var(--service-box-height);
+    min-height: var(--service-box-min-height);
+    width: var(--service-box-width);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     flex-grow: 1;
     border: 0.5px solid #a4a4a4;
-    min-width: 110px;
   }
   .avai-service {
     border-bottom: 0.5px solid #a4a4a4;
   }
   .service.empty {
     background-color: #e5e5e5;
+    justify-content: center;
   }
   .avai-service {
     padding: 10px;
@@ -105,18 +198,18 @@
     flex-direction: column;
   }
   .avai-service div + div {
-    margin-top: 0.4rem;
+    margin-top: 0.4em;
     color: var(--font-color-secondary);
-    font-size: 0.9em;
+    font-size: var(--font-size-secondary);
   }
-  .avai-service > button {
-    font-size: 1rem;
-  }
+  /* .avai-service > button {
+    font-size: 1em;
+  } */
   .avai-service button {
     align-self: stretch;
     color: white;
-    margin-top: 0.5rem;
-    padding: 0.3rem 0;
+    margin-top: 0.5em;
+    padding: 0.3em 0;
     /* border: 0.5px solid #a4a4a4; */
     border: none;
     background-color: rgb(var(--box-main-background));
@@ -131,49 +224,78 @@
     cursor: pointer;
   }
   #currentWeekContainer {
-    position: relative;
     display: flex;
     justify-content: center;
+    margin-bottom: 1em;
+    text-decoration: underline;
   }
   #currentWeek {
-    position: relative;
-    right: 100px;
+    color: var(--font-color-secondary);
   }
+
+  #loadingMsg {
+    display: flex;
+    justify-content: center;
+    margin: 2em 0 0 0;
+  }
+  #loadingMsg.hidden {
+    display: none;
+  }
+  @keyframes spin { 
+    to { 
+      transform: rotate(360deg); 
+    } 
+  }
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 5px solid #d0cdcd;
+    border-top-color: rgb(217, 173, 89);
+    animation: spin 1s ease-out infinite;
+  }
+  
 
 </style>
 
 <!-- calendar body -->
-<div id="testModule">
-  <button id="setServices">Set services</button>
-  <button id="setSlot">Set slots</button>
-</div>
 <div id="calendarBody" class="gelasio">
   <div id="calendarTitle"><h3>Book Now</h3></div>
   <div id="errorMsg" class="hidden error"><p>Unable to load services. Please refresh and try again.</p></div>
   <div id="hint" class="hidden"></div>
   <div class="filter-wrapper">
     <span>Filter by:</span>
-    <select id="serviceSelect" class="gelasio selector">
-      <option value="">-- Choose a service --</option>
-    </select>
-    <span>|</span>
-    <select id="staffSelect" class="gelasio selector">
-      <option value="">-- Choose a staff --</option>
-    </select>
+    <div class="custom-select-wrapper">
+      <button id="serviceSelect" class="gelasio selector" aria-expanded="false">
+        <span class="selector-label">-- Choose a service --</span>
+        <span class="selector-arrow"></span>
+      </button>
+      <ul id="serviceSelectList" class="selector-list scrollable hidden"></ul>
+    </div>
+    <!-- <span>|</span>
+    <div class="custom-select-wrapper">
+      <button id="staffSelect" class="gelasio selector" aria-expanded="false">
+        <span class="selector-label">Staff (All)</span>
+        <span class="selector-arrow"></span>
+      </button>
+      <ul id="staffSelectList" class="selector-list hidden"></ul>
+    </div> -->
   </div>
   
-
   <div id="currentWeekContainer">
     <button id="currentWeek" class="change-week">Current week</button>
   </div>
 
   <div class="week-nav">
-    <button id="prevWeek" class="change-week">< Previous</button>
+    <button id="prevWeek" class="change-week"><span class="arrow-left"></span> Previous</button>
     <span id="weekLabel"></span>
-    <button id="nextWeek" class="change-week">Next ></button>
+    <button id="nextWeek" class="change-week">Next <span class="arrow-right"></span></button>
   </div>
 
   <div id="errorMsg2" class="hidden error">Unable to load slots. Please refresh and try again.</div>
+  <div id="loadingMsg" class="hidden">
+    <div class="spinner"></div>
+  </div>
   <div id="calendarContainer"></div>
 </div>
 
@@ -181,6 +303,12 @@
   const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var headerDate = new Date();
   var services = [];
+  const serviceSelectState = {
+    options: [{ text: '-- Choose a service --', value: '' }],
+    selectedIndex: 0,
+    value: '',
+  };
+  // let selectedStaffIds = [];
 
   renderCalendar();// Seems to have display bug. Not showing up upon page load.
 
@@ -188,7 +316,6 @@
   // ** Main listener for messages from parent window ** ---------
   // Should always check the received array's length 
   window.addEventListener("message", (event) => {
-    console.log("Received a message.")
     const { type, data } = event.data;
 
     if (type == "SET_SERVICES") {
@@ -276,7 +403,7 @@
     headerDate.setDate(headerDate.getDate() - 7);
     renderCalendar();
 
-    const serviceId = document.getElementById("serviceSelect").value;
+    const serviceId = serviceSelectState.value;
     if (serviceId != "") {
       requestServiceSlots(serviceId);
     } 
@@ -286,7 +413,7 @@
     headerDate.setDate(headerDate.getDate() + 7);
     renderCalendar();
 
-    const serviceId = document.getElementById("serviceSelect").value;
+    const serviceId = serviceSelectState.value;
     if (serviceId != "") {
       requestServiceSlots(serviceId);
     } 
@@ -296,55 +423,55 @@
     headerDate = new Date();
     renderCalendar();
 
-    const serviceId = document.getElementById("serviceSelect").value;
+    const serviceId = serviceSelectState.value;
     if (serviceId != "") {
       requestServiceSlots(serviceId);
     } 
   })
 
-  document.getElementById("serviceSelect").addEventListener('change', (e) => {
-    const serviceId = e.target.value;
-    if (serviceId != "") {
-      requestServiceSlots(serviceId);
-    } 
-  })
+  // Service dropdown toggle
+  document.getElementById("serviceSelect").addEventListener('click', (e) => {
+    e.stopPropagation();
+    const btn = document.getElementById("serviceSelect");
+    const list = document.getElementById("serviceSelectList");
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    closeAllDropdowns();
+    if (!isOpen) {
+      btn.setAttribute('aria-expanded', 'true');
+      list.classList.remove('hidden');
+    }
+  });
+  document.getElementById("serviceSelectList").addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
 
-  //////////////For test purpose. Need to be deleted in production
-  document.getElementById("setSlot").addEventListener('click', () => {
-    // startDate: s.localStartDate,
-    //         endDate: s.localEndDate,
-    //         location: s.location.name,
-    //         staffList
-    window.postMessage({
-      type: "SET_APPO_SLOTS",
-      data: [
-        {startDate: "2026-05-11T15:30:00", endDate: "2026-05-11T16:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
-        {startDate: "2026-05-11T16:30:00", endDate: "2026-05-11T17:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}, {name: "Karen", id: "9304"}]},
-        {startDate: "2026-05-11T17:30:00", endDate: "2026-05-11T18:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
-      ]
-    })
-  })
-  
-  document.getElementById("setServices").addEventListener('click', () => {
-    // startDate: s.localStartDate,
-    //         endDate: s.localEndDate,
-    //         location: s.location.name,
-    //         staffList
-    window.postMessage({
-      type: "SET_SERVICES",
-      data: [
-        {id: "23lkjds09klxz", name: "Fundamental Class", serviceType: "Class"},
-        {id: "523kjds09klxz", name: "Mat Class", serviceType: "Class"},
-        {id: "23lkADSr9klxz", name: "Studio Circuits", serviceType: "Class"},
-        {id: "9034kjds09klxz", name: "One-2-one Studio", serviceType: "Appointment"},
-        {id: "f0f48jds09klxz", name: "Deep Tissue Massage", serviceType: "Appointment"},
-        {id: "f0f48fes09klxz", name: "Brazilian Lymphatic Drainage", serviceType: "Appointment"},
-        {id: "f0f456klxz", name: "Reflexology Foot Massage", serviceType: "Appointment"},
-        {id: "f0ff324534klxz", name: "Swedish Massage", serviceType: "Appointment"},
-        {id: "f0ff324t4353lxz", name: "Aura Cleansing using tuning forks", serviceType: "Appointment"},
-      ]
-    })
-  })
+  // Staff dropdown toggle
+  // document.getElementById("staffSelect").addEventListener('click', (e) => {
+  //   e.stopPropagation();
+  //   const btn = document.getElementById("staffSelect");
+  //   const list = document.getElementById("staffSelectList");
+  //   const isOpen = btn.getAttribute('aria-expanded') === 'true';
+  //   closeAllDropdowns();
+  //   if (!isOpen) {
+  //     btn.setAttribute('aria-expanded', 'true');
+  //     list.classList.remove('hidden');
+  //   }
+  // });
+  // document.getElementById("staffSelectList").addEventListener('click', (e) => {
+  //   e.stopPropagation();
+  // });
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', () => {
+    closeAllDropdowns();
+  });
+
+  function closeAllDropdowns() {
+    document.getElementById("serviceSelect").setAttribute('aria-expanded', 'false');
+    document.getElementById("serviceSelectList").classList.add('hidden');
+    // document.getElementById("staffSelect").setAttribute('aria-expanded', 'false');
+    // document.getElementById("staffSelectList").classList.add('hidden');
+  }
 
   /* Major functions */
   /**
@@ -376,7 +503,7 @@
     let dHtml = ``;
     let labelIndex = 0; // For week day labels
     // For larger screens:
-    if (screenWidth > 900) {
+    if (screenWidth > 800) {
       dateArray.forEach((date) => {
         dHtml += `
         <div class="calendar-column">
@@ -423,22 +550,34 @@
         }
       }, '*');
     }
+
+    document.getElementById("loadingMsg").classList.remove("hidden");
+    document.getElementById("calendarContainer").classList.add("hidden");
+    clearPrevSlots();
   }
 
   /**
    * Renders appointment slots based on the data passed from parent window.
    */
   function renderAppoSlots(data) {
-    clearPrevSlots();
-
     let rawHtml = ``;
-    const select = document.getElementById('serviceSelect');
+    const select = serviceSelectState;
     const serviceName = select.options[select.selectedIndex].text;
     const serviceId = select.options[select.selectedIndex].value;
+    let targetMemory;
 
     data.forEach((s) => {
       const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
-      
+      if (!targetMemory) {
+        targetMemory = target;
+        console.log("targetMemory is empty. Let targetMemory = target;");
+      } else {
+        if (targetMemory !== target) {
+          rawHtml = "";
+          console.log("targetMemory is different from target. Empty rawHtml.")
+        }
+      }
+
       const duration = new Date(s.endDate) - new Date(s.startDate);
       const durationFormatted = formatDuration(duration);
       
@@ -463,26 +602,35 @@
         </div>
         `;
       }
-
       target.classList.remove("empty");
       target.innerHTML = rawHtml;
     });
+    document.getElementById("loadingMsg").classList.add("hidden");
+    document.getElementById("calendarContainer").classList.remove("hidden");
   }
 
   /**
    * Renders class slots based on the data passed from parent window.
    */
   function renderClassSlots(data) {
-    clearPrevSlots();
-
     let rawHtml = ``;
-    const select = document.getElementById('serviceSelect');
+    const select = serviceSelectState;
     const serviceName = select.options[select.selectedIndex].text;
     const serviceId = select.options[select.selectedIndex].value;
+    let targetMemory;
 
     data.forEach((s) => {
       const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
-      
+      if (!targetMemory) {
+        targetMemory = target;
+        console.log("targetMemory is empty. Let targetMemory = target;");
+      } else {
+        if (targetMemory !== target) {
+          rawHtml = "";
+          console.log("targetMemory is different from target. Empty rawHtml.")
+        }
+      }
+
       const duration = new Date(s.endDate) - new Date(s.startDate);
       const durationFormatted = formatDuration(duration);
 
@@ -521,6 +669,8 @@
       target.classList.remove("empty");
       target.innerHTML = rawHtml;
     });
+    document.getElementById("loadingMsg").classList.add("hidden");
+    document.getElementById("calendarContainer").classList.remove("hidden");
   }
 
   /**
@@ -528,23 +678,46 @@
    * passed from parent window.
    */
   function renderDropdown(data) {
-    const select = document.getElementById("serviceSelect");
+    const serviceList = document.getElementById("serviceSelectList");
     const errorMsg = document.getElementById("errorMsg");
 
     if (data.length != 0) {
       errorMsg.classList.add("hidden");
 
       data.forEach((s) => {
-        const opt = document.createElement("option");
-        opt.value = s.id;
-        opt.textContent = s.name;
-        select.appendChild(opt);
+        serviceSelectState.options.push({ text: s.name, value: s.id });
+
+        const li = document.createElement("li");
+        li.textContent = s.name;
+        li.addEventListener('click', () => {
+          const idx = serviceSelectState.options.findIndex(o => o.value === s.id);
+          serviceSelectState.selectedIndex = idx;
+          serviceSelectState.value = s.id;
+          document.querySelector('#serviceSelect .selector-label').textContent = s.name;
+          serviceList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
+          li.classList.add('selected');
+          closeAllDropdowns();
+          requestServiceSlots(s.id);
+        });
+        serviceList.appendChild(li);
       });
     } else {
       errorMsg.value = "No service is found. Please contact us to book.";
       errorMsg.classList.remove("hidden");
+
+      const p = document.createElement("p");
+      p.textContent = "No service";
+      serviceList.appendChild(p);
     }
   }
+
+  // function renderStaffDropdown(staffArray) {
+
+  // }
+
+  // function updateSelectedStaff() {
+
+  // }
 
   function showErrorGetServices() {
     const errorMsg = document.getElementById("errorMsg");

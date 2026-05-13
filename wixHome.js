@@ -28,7 +28,8 @@ $w.onReady(async function () {
 		// Step 2: display slots. Relies on the embedded part.
 		if (type == "GET_APPO_SLOTS") {			
 			const slots = await listAppoSlots(data.serviceId, data.startDate, data.endDate);
-			
+			console.log("Slots:");
+			console.log(slots);
 			if (slots != -1) {
 				// // Step 3: check if the service has variants, show hint if it has.
 				let showVariantHint = false;
