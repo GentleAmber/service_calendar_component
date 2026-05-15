@@ -4,7 +4,9 @@
   #calendarBody {
     --service-box-min-height: 100px;
     --service-box-width: 180px;
+    --border-color-service-box: #a4a4a4;
     --box-main-background: 217, 173, 89;
+    --box-active-background: 181, 142, 70;
     --font-color-major: black;
     --font-color-secondary: #757272;
     --font-size: 18px;
@@ -18,26 +20,23 @@
     flex-direction: column;
     place-items: center;
   }
-  @media (width <= 1500px) {
+  @media (max-width: 1500px) {
     #calendarBody {
       --service-box-width: 150px;
     }
   }
-  @media (width <= 1200px) {
+  @media (max-width: 1200px) {
     #calendarBody {
       --service-box-width: 130px;
     }
   }
-  @media (width <= 1000px) {
+  @media (max-width: 1000px) {
     #calendarBody {
       --service-box-width: 100px;
     }
   }
-  /* Layout for phones */
-  @media (width <= 780px) {
-    #calendarBody {
-      
-    }
+  @media (max-width: 800px) {
+    #calendarBody {}
   }
   #calendarBody p {
     margin: 0.3em 0;
@@ -58,7 +57,6 @@
     font-weight: 400;
     font-style: normal;
   }
-  
 	.week-nav {
     display: flex; 
     justify-content: center;
@@ -72,10 +70,6 @@
   #hint {
     color: rgb(25, 96, 228);
   }
-  .hidden {
-    display: none;
-  }
-  
   #weekLabel {
     color: var(--font-color-major);
   }
@@ -161,13 +155,19 @@
   .selector-list p {
     text-align: center;
   }
-
   #calendarContainer {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: stretch;
     font-size: var(--font-size-third);
+    row-gap: 20px;
+  }
+  #calendarContainer.mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-wrap: nowrap;
   }
   #calendarContainer.hidden {
     display: none;
@@ -188,10 +188,10 @@
     flex-wrap: wrap;
     justify-content: flex-start;
     flex-grow: 1;
-    border: 0.5px solid #a4a4a4;
+    border: 0.5px solid var(--border-color-service-box);
   }
-  .avai-service {
-    border-bottom: 0.5px solid #a4a4a4;
+  .avai-service:not(.mobile) {
+    border-bottom: 0.5px solid var(--border-color-service-box);
   }
   .service.empty {
     background-color: #e5e5e5;
@@ -217,10 +217,12 @@
     color: white;
     margin-top: 0.5em;
     padding: 0.3em 0;
-    /* border: 0.5px solid #a4a4a4; */
     border: none;
     background-color: rgb(var(--box-main-background));
     font-size: var(--font-size-secondary);
+  }
+  .avai-service button:active {
+    background-color: rgb(var(--box-active-background));
   }
   button.nonbookable {
     background-color: rgb(144, 142, 142);
@@ -264,14 +266,62 @@
     animation: spin 1s ease-out infinite;
   }
   
-
+  /* For mobile */
+  #dateWrapper {
+    display: flex;
+    column-gap: 10px;
+    flex-wrap: nowrap;
+  }
+  #mobileServiceSlots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid var(--border-color-service-box);
+    min-height: 150px;
+  }
+  #mobileServiceSlots.empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #mobileServiceSlots.empty::after {
+    content: "No service";
+  }
+  .mobile-date-label {
+    display: flex;
+    flex-direction: column;
+    place-items: center;
+  }
+  .date-to-choose {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.2em 5px;
+  }
+  .date-to-choose.dot:after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    margin: 3px auto 0;
+  }
+  .date-to-choose.active {
+    background-color: rgb(var(--box-main-background));
+    color: white;
+  }
+  #mobileServiceSlots.single-visible > div:not(.hidden) {
+    grid-column: span 2;
+  }
+  .hidden {
+    display: none;
+  }
 </style>
 
 <!-- calendar body -->
-<div id="testModule">
-  <button id="setServices">Set services</button>
-  <button id="setSlot">Set slots</button>
-</div>
 <div id="calendarBody" class="gelasio">
   <div id="calendarTitle"><h3>Book Now</h3></div>
   <div id="errorMsg" class="hidden error"><p>Unable to load services. Please refresh and try again.</p></div>
@@ -321,9 +371,13 @@
     selectedIndex: 0,
     value: '',
   };
+  var selectedDate = new Date();
+  const isLgScreen = window.innerWidth > 800;
+  const loadingMsg = document.getElementById("loadingMsg");
+  const calendarContainer = document.getElementById("calendarContainer");
   // let selectedStaffIds = [];
 
-  renderCalendar();// Seems to have display bug. Not showing up upon page load.
+  renderCalendar();
 
   /* Listeners */
   // ** Main listener for messages from parent window ** ---------
@@ -458,6 +512,42 @@
     e.stopPropagation();
   });
 
+  // Mobile date selection
+  calendarContainer.addEventListener('click', (e) => {
+    const dateEl = e.target.closest('.date-to-choose');
+    if (!dateEl) return;
+
+    const serviceSlots = document.getElementById("mobileServiceSlots");
+    selectedDate = new Date(dateEl.dataset.date);
+
+    // Move .active highlight
+    document.querySelectorAll('.date-to-choose.active')
+      .forEach(el => el.classList.remove('active'));
+    dateEl.classList.add('active');
+
+    // Change text
+    document.getElementById("availabilityDate").textContent = `Availability for ${formatDateForMobileCalendar(selectedDate)}`;
+    // Toggle slot visibility only if this date has slots
+    if (dateEl.classList.contains('dot')) {
+      serviceSlots.classList.remove("empty");
+      const dateStr = dateEl.dataset.date;
+      document.querySelectorAll('.mobile.avai-service').forEach(slot => {
+        if (slot.dataset.endDatePure == dateStr) {
+          slot.classList.remove('hidden');
+        } else {
+          slot.classList.add('hidden');
+        }
+      });
+      fixMobileSlotLayout();
+    } else {
+      document.querySelectorAll('.mobile.avai-service').forEach(slot => {
+        slot.classList.add('hidden');
+      });
+      serviceSlots.classList.add("empty");
+    }    
+  });
+
+
   // Staff dropdown toggle
   // document.getElementById("staffSelect").addEventListener('click', (e) => {
   //   e.stopPropagation();
@@ -495,9 +585,8 @@
     const weekLabel = document.getElementById("weekLabel");
     const preWeekButton = document.getElementById("prevWeek");
     const nexWeekButton = document.getElementById("nextWeek");
-    const dateArray = getWeekList(headerDate);
-    const calendarContainer = document.getElementById("calendarContainer");
-    const screenWidth = window.innerWidth;
+    const dateArray = isLgScreen ? getWeekList(headerDate) : getWeekListForMobile(headerDate);
+    
     const TODAY = new Date();
 
     const WEEKDAY_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -516,7 +605,7 @@
     let dHtml = ``;
     let labelIndex = 0; // For week day labels
     // For larger screens:
-    if (screenWidth > 800) {
+    if (isLgScreen) {
       dateArray.forEach((date) => {
         dHtml += `
         <div class="calendar-column">
@@ -531,9 +620,40 @@
       });
     } else {
       // To be written for smaller screens
-    }
+      calendarContainer.classList.add("mobile");
+      dHtml += `<div id="dateWrapper">`;
+      dateArray.forEach((date) => {
+        dHtml += `
+        <div class="date-column">
+          <div class="mobile-date-label">
+            <p>${WEEKDAY_LABEL[labelIndex]}</p>
+            <div class="date-to-choose" 
+            data-date="${date}"
+            >
+              <p>${Number(date.slice(8, 10))}</p>
+            </div>
+          </div>
+        </div>
+        `;
+        labelIndex++;
+      });
 
+      dHtml += `
+      </div>
+      <div id="mobileServiceContainer">
+        <p id="availabilityDate">Availability for ${formatDateForMobileCalendar(selectedDate)}</p>
+        <div id="mobileServiceSlots" class="empty">
+        </div>
+      </div>
+      `;
+    }
     calendarContainer.innerHTML = dHtml;
+
+    const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
+    const activeEl = document.querySelector(`.date-to-choose[data-date="${selectedDateStr}"]`);
+    if (activeEl) activeEl.classList.add('active');
+
+
   }
 
   /**
@@ -564,8 +684,8 @@
       }, '*');
     }
 
-    document.getElementById("loadingMsg").classList.remove("hidden");
-    document.getElementById("calendarContainer").classList.add("hidden");
+    loadingMsg.classList.remove("hidden");
+    calendarContainer.classList.add("hidden");
     clearPrevSlots();
   }
 
@@ -579,47 +699,106 @@
     const serviceId = select.options[select.selectedIndex].value;
     let targetMemory;
 
-    data.forEach((s) => {
-      const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
-      if (!targetMemory) {
-        targetMemory = target;
-        console.log("targetMemory is empty. Let targetMemory = target;");
-      } else {
-        if (targetMemory !== target) {
-          rawHtml = "";
-          console.log("targetMemory is different from target. Empty rawHtml.")
+    if (isLgScreen) {
+      data.forEach((s) => {
+        const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
+        if (!targetMemory) {
+          targetMemory = target;
+        } else {
+          if (targetMemory !== target) {
+            rawHtml = "";
+            targetMemory = target;
+          }
         }
-      }
 
-      const duration = new Date(s.endDate) - new Date(s.startDate);
-      const durationFormatted = formatDuration(duration);
-      
-      for (let i = 1; i <= s.staffList.length; i++){
-        rawHtml += `
-        <div class='avai-service avai-appo'>
-          <div class='service-main-info'>
-            <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
-            <p class='service-title'>${serviceName}</p>
+        const duration = new Date(s.endDate) - new Date(s.startDate);
+        const durationFormatted = formatDuration(duration);
+        
+        for (let i = 1; i <= s.staffList.length; i++){
+          rawHtml += `
+          <div class='avai-service avai-appo'>
+            <div class='service-main-info'>
+              <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+              <p class='service-title'>${serviceName}</p>
+            </div>
+            <div class='service-sec-info'>
+              <p class='staff'>${s.staffList[i-1].name}</p>
+              <p class='duration'>${durationFormatted}</p>
+            </div>
+            <button class='book-appo book-service gelasio'
+            data-service-id='${serviceId}'
+            data-staff-id='${s.staffList[i-1]._id}'
+            data-start-date='${s.startDate}'
+            data-end-date='${s.endDate}'>
+            Book
+            </button>
           </div>
-          <div class='service-sec-info'>
-            <p class='staff'>${s.staffList[i-1].name}</p>
-            <p class='duration'>${durationFormatted}</p>
-          </div>
-          <button class='book-appo book-service gelasio'
-          data-service-id='${serviceId}'
-          data-staff-id='${s.staffList[i-1]._id}'
-          data-start-date='${s.startDate}'
-          data-end-date='${s.endDate}'>
-          Book
-          </button>
-        </div>
-        `;
+          `;
+        }
+        target.classList.remove("empty");
+        target.innerHTML = rawHtml;
+      });
+      loadingMsg.classList.add("hidden");
+      calendarContainer.classList.remove("hidden");
+    } else {
+      // const dot = document.createElement("p");
+      // dot.textContent = "•";
+
+      if (data.length > 0) {
+        
+        let loadedServicesHtml = '';
+        const selectedDatePure = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
+
+        data.forEach((s) => {
+          const duration = new Date(s.endDate) - new Date(s.startDate);
+          const durationFormatted = formatDuration(duration);
+          // const target = document.querySelector(`.date-to-choose[data-date="${new Date(s.endDate).getDate()}"]`);
+          const target = document.querySelector(`.date-to-choose[data-date="${s.endDate.slice(0, 10)}"]`);
+          
+          if (!target.classList.contains("dot")) {
+            target.classList.add("dot");
+          }
+
+          // let outerClassList = "mobile avai-service avai-appo";
+          // if (new Date(s.endDate).getDate() != selectedDate.getDate()) {
+          //   outerClassList += " hidden";
+          // }
+
+          let outerClassList = "mobile avai-service avai-appo";
+          if (s.endDate.slice(0, 10) !== selectedDatePure) {
+            outerClassList += " hidden";
+          }
+
+          for (let i = 1; i <= s.staffList.length; i++){
+            loadedServicesHtml += `
+            <div class="${outerClassList}" data-end-date='${s.endDate}' data-end-date-pure='${s.endDate.slice(0, 10)}'>
+              <div class='service-main-info'>
+                <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+                <p class='service-title'>${serviceName}</p>
+              </div>
+              <div class='service-sec-info'>
+                <p class='staff'>${s.staffList[i-1].name}</p>
+                <p class='duration'>${durationFormatted}</p>
+              </div>
+              <button class='book-appo book-service gelasio'
+              data-service-id='${serviceId}'
+              data-staff-id='${s.staffList[i-1]._id}'
+              data-start-date='${s.startDate}'
+              data-end-date='${s.endDate}'>
+              Book
+              </button>
+            </div>
+            `;
+          }
+        });
+        const mobileServiceSlots = document.getElementById("mobileServiceSlots");
+        mobileServiceSlots.innerHTML = loadedServicesHtml;
+        mobileServiceSlots.classList.remove("empty");
+        fixMobileSlotLayout();
       }
-      target.classList.remove("empty");
-      target.innerHTML = rawHtml;
-    });
-    document.getElementById("loadingMsg").classList.add("hidden");
-    document.getElementById("calendarContainer").classList.remove("hidden");
+      loadingMsg.classList.add("hidden");
+      calendarContainer.classList.remove("hidden");
+    }
   }
 
   /**
@@ -632,58 +811,127 @@
     const serviceId = select.options[select.selectedIndex].value;
     let targetMemory;
 
-    data.forEach((s) => {
-      const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
-      if (!targetMemory) {
-        targetMemory = target;
-        console.log("targetMemory is empty. Let targetMemory = target;");
-      } else {
-        if (targetMemory !== target) {
-          rawHtml = "";
-          console.log("targetMemory is different from target. Empty rawHtml.")
+    if (isLgScreen) {
+      data.forEach((s) => {
+        const target = document.querySelector(`.service[data-date="${new Date(s.endDate).getDate()}"]`);
+        if (!targetMemory) {
+          targetMemory = target;
+        } else {
+          if (targetMemory !== target) {
+            rawHtml = "";
+            targetMemory = target;
+          }
         }
+
+        const duration = new Date(s.endDate) - new Date(s.startDate);
+        const durationFormatted = formatDuration(duration);
+
+        const capacityText = 
+        s.bookable ? 
+        `${s.bookableCapacity} spots left` : 
+        "Registration closed";
+
+        const buttonClass = 
+        s.bookable ? 
+        "book-cls book-service gelasio" : 
+        "nonbookable book-cls book-service gelasio";
+
+        rawHtml += `
+        <div class='avai-service avai-cls'>
+          <div class='service-main-info'>
+            <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+            <p class='service-title'>${serviceName}</p>
+          </div>
+          <div class='service-sec-info'>
+            <p class='staff'>${s.staff}</p>
+            <p class='duration'>${durationFormatted}</p>
+          </div>
+          <div class='service-thi-info'>
+            <p class='capacity'>${capacityText}</p>
+          </div>
+          <button class='${buttonClass}'
+          data-service-id='${serviceId}'
+          data-start-date='${s.startDate}'
+          data-end-date='${s.endDate}'>
+          Book
+          </button>
+        </div>
+        `;
+
+        target.classList.remove("empty");
+        target.innerHTML = rawHtml;
+      });
+      loadingMsg.classList.add("hidden");
+      calendarContainer.classList.remove("hidden");
+
+    } else {
+      // const dot = document.createElement("p");
+      // dot.textContent = "•";
+
+      if (data.length > 0) {
+        let loadedServicesHtml = '';
+
+        data.forEach((s) => {
+          const duration = new Date(s.endDate) - new Date(s.startDate);
+          const durationFormatted = formatDuration(duration);
+
+          const capacityText = 
+          s.bookable ? 
+          `${s.bookableCapacity} spots left` : 
+          "Registration closed";
+
+          const buttonClass = 
+          s.bookable ? 
+          "book-cls book-service gelasio" : 
+          "nonbookable book-cls book-service gelasio";
+
+          const target = document.querySelector(`.date-to-choose[data-date="${s.endDate.slice(0, 10)}"]`);
+          
+          if (!target.classList.contains("dot")) {
+            target.classList.add("dot");
+          }
+
+          // let outerClassList = "mobile avai-service avai-cls";
+          // if (new Date(s.endDate).getDate() != selectedDate.getDate()) {
+          //   outerClassList += " hidden";
+          // }
+          let outerClassList = "mobile avai-service avai-appo";
+          if (s.endDate.slice(0, 10) !== selectedDatePure) {
+            outerClassList += " hidden";
+          }
+
+          loadedServicesHtml += `
+          <div class="${outerClassList}" data-end-date='${s.endDate}' data-end-date-pure='${s.endDate.slice(0, 10)}'>
+            <div class='service-main-info'>
+              <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
+              <p class='service-title'>${serviceName}</p>
+            </div>
+            <div class='service-sec-info'>
+              <p class='staff'>${s.staff}</p>
+              <p class='duration'>${durationFormatted}</p>
+            </div>
+            <div class='service-thi-info'>
+              <p class='capacity'>${capacityText}</p>
+            </div>
+            <button class='${buttonClass}'
+            data-service-id='${serviceId}'
+            data-start-date='${s.startDate}'
+            data-end-date='${s.endDate}'>
+            Book
+            </button>
+          </div>
+          `;
+          
+        });
+        const mobileServiceSlots = document.getElementById("mobileServiceSlots");
+        mobileServiceSlots.innerHTML = loadedServicesHtml;
+        mobileServiceSlots.classList.remove("empty");
+        
       }
-
-      const duration = new Date(s.endDate) - new Date(s.startDate);
-      const durationFormatted = formatDuration(duration);
-
-      const capacityText = 
-      s.bookable ? 
-      `${s.bookableCapacity} spots left` : 
-      "Registration closed";
-
-      const buttonClass = 
-      s.bookable ? 
-      "book-cls book-service gelasio" : 
-      "nonbookable book-cls book-service gelasio";
-
-      rawHtml += `
-      <div class='avai-service avai-cls'>
-        <div class='service-main-info'>
-          <p class='service-time'>${hourFormat(new Date(s.startDate))} - ${hourFormat(new Date(s.endDate))}</p>
-          <p class='service-title'>${serviceName}</p>
-        </div>
-        <div class='service-sec-info'>
-          <p class='staff'>${s.staff}</p>
-          <p class='duration'>${durationFormatted}</p>
-        </div>
-        <div class='service-thi-info'>
-          <p class='capacity'>${capacityText}</p>
-        </div>
-        <button class='${buttonClass}'
-        data-service-id='${serviceId}'
-        data-start-date='${s.startDate}'
-        data-end-date='${s.endDate}'>
-        Book
-        </button>
-      </div>
-      `;
-
-      target.classList.remove("empty");
-      target.innerHTML = rawHtml;
-    });
-    document.getElementById("loadingMsg").classList.add("hidden");
-    document.getElementById("calendarContainer").classList.remove("hidden");
+      loadingMsg.classList.add("hidden");
+      calendarContainer.classList.remove("hidden");
+    }
+    
   }
 
   /**
@@ -772,11 +1020,20 @@
   }
 
   function clearPrevSlots() {
-    document.querySelectorAll('div.service').forEach(el => {
-      el.innerHTML = 'No service';
-      if (!el.classList.contains('empty')) el.classList.add('empty');
+    if (isLgScreen) {
+      document.querySelectorAll('div.service').forEach(el => {
+        el.innerHTML = 'No service';
+        if (!el.classList.contains('empty')) el.classList.add('empty');
+      });
+    } else {
+      document.querySelectorAll('div.date-to-choose').forEach(el => {
+        el.classList.remove("dot");
+      })
+      const mobileServiceSlots = document.getElementById("mobileServiceSlots");
+      mobileServiceSlots.innerHTML="";
+      mobileServiceSlots.classList.add("empty");
 
-    });
+    }
   }
 
   /* Helper functions */
@@ -807,18 +1064,37 @@
    * e.g. [4, 5, 6, 7, 8, 9, 10]
    */
   function getWeekList(date) {
-    const monday = getMonday(date)
-    const sunday = getSunday(date)
-    const days = []
+    const monday = getMonday(date);
+    const sunday = getSunday(date);
+    const days = [];
 
-    const d = new Date(monday)
+    const d = new Date(monday);
 
     while(d <= sunday) {
-      days.push(d.getDate())
-      d.setDate(d.getDate() + 1)
+      days.push(d.getDate());
+      d.setDate(d.getDate() + 1);
     }
 
-    return days
+    return days;
+  }
+
+  /** 
+   * Return an array of date list for the selected week.
+   * e.g. ["2026-12-01", "2026-12-02", ...]
+   */
+  function getWeekListForMobile(date) {
+    const monday = getMonday(date);
+    const sunday = getSunday(date);
+    const days = [];
+    const d = new Date(monday);
+    while (d <= sunday) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      days.push(`${year}-${month}-${day}`);
+      d.setDate(d.getDate() + 1);
+    }
+    return days;
   }
 
   /** 
@@ -897,40 +1173,23 @@
     return `${paddedHour}:${paddedMinutes}`;
   }
 
-  /////////////For test purpose. Need to be deleted for production
-  document.getElementById("setSlot").addEventListener('click', () => {
-    // startDate: s.localStartDate,
-    //         endDate: s.localEndDate,
-    //         location: s.location.name,
-    //         staffList
-    window.postMessage({
-      type: "SET_APPO_SLOTS",
-      data: [
-        {startDate: "2026-05-11T15:30:00", endDate: "2026-05-11T16:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
-        {startDate: "2026-05-11T16:30:00", endDate: "2026-05-11T17:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}, {name: "Karen", id: "9304"}]},
-        {startDate: "2026-05-11T17:30:00", endDate: "2026-05-11T18:30:00", location: "Therapy room", staffList: [{name: "Claire", id: "9544"}]},
-      ]
-    })
-  })
-  
-  document.getElementById("setServices").addEventListener('click', () => {
-    // startDate: s.localStartDate,
-    //         endDate: s.localEndDate,
-    //         location: s.location.name,
-    //         staffList
-    window.postMessage({
-      type: "SET_SERVICES",
-      data: [
-        {id: "23lkjds09klxz", name: "Fundamental Class", serviceType: "Class"},
-        {id: "523kjds09klxz", name: "Mat Class", serviceType: "Class"},
-        {id: "23lkADSr9klxz", name: "Studio Circuits", serviceType: "Class"},
-        {id: "9034kjds09klxz", name: "One-2-one Studio", serviceType: "Appointment"},
-        {id: "f0f48jds09klxz", name: "Deep Tissue Massage", serviceType: "Appointment"},
-        {id: "f0f48fes09klxz", name: "Brazilian Lymphatic Drainage", serviceType: "Appointment"},
-        {id: "f0f456klxz", name: "Reflexology Foot Massage", serviceType: "Appointment"},
-        {id: "f0ff324534klxz", name: "Swedish Massage", serviceType: "Appointment"},
-        {id: "f0ff324t4353lxz", name: "Aura Cleansing using tuning forks", serviceType: "Appointment"},
-      ]
-    })
-  })
+  function formatDateForMobileCalendar(date) {
+    const options = { weekday: 'long', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString("en-GB", options);
+  }
+
+  function fixMobileSlotLayout() {
+    const container = document.getElementById("mobileServiceSlots");
+    const visible = [...container.querySelectorAll('.mobile.avai-service:not(.hidden)')];
+
+    // Span full width if only one visible slot
+    container.classList.toggle('single-visible', visible.length === 1);
+
+    // Re-apply borders based on visual position, not DOM index
+    visible.forEach((el, i) => {
+      el.style.borderRight = (i % 2 === 0) ? '0.5px solid #a4a4a4' : 'none';
+      el.style.borderBottom = '0.5px solid #a4a4a4';
+    });
+  }
+
 </script>
