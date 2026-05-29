@@ -35,9 +35,6 @@
       --service-box-width: 100px;
     }
   }
-  @media (max-width: 800px) {
-    #calendarBody {}
-  }
   #calendarBody p {
     margin: 0.3em 0;
   }
@@ -221,7 +218,7 @@
     background-color: rgb(var(--box-main-background));
     font-size: var(--font-size-secondary);
   }
-  .avai-service button:active {
+  .avai-service button:not(.nonbookable):active {
     background-color: rgb(var(--box-active-background));
   }
   button.nonbookable {
@@ -312,6 +309,9 @@
   .date-to-choose.active {
     background-color: rgb(var(--box-main-background));
     color: white;
+  }
+  #mobileServiceSlots.single-visible {
+    width: 220px;
   }
   #mobileServiceSlots.single-visible > div:not(.hidden) {
     grid-column: span 2;
@@ -870,6 +870,7 @@
 
       if (data.length > 0) {
         let loadedServicesHtml = '';
+        const selectedDatePure = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
 
         data.forEach((s) => {
           const duration = new Date(s.endDate) - new Date(s.startDate);
@@ -895,7 +896,7 @@
           // if (new Date(s.endDate).getDate() != selectedDate.getDate()) {
           //   outerClassList += " hidden";
           // }
-          let outerClassList = "mobile avai-service avai-appo";
+          let outerClassList = "mobile avai-service avai-cls";
           if (s.endDate.slice(0, 10) !== selectedDatePure) {
             outerClassList += " hidden";
           }
@@ -963,7 +964,7 @@
         serviceList.appendChild(li);
       });
     } else {
-      errorMsg.value = "No service is found. Please contact us to book.";
+      errorMsg.innerHTML = "No service is found. Please contact us to book.";
       errorMsg.classList.remove("hidden");
 
       const p = document.createElement("p");
@@ -983,7 +984,7 @@
   function showErrorGetServices() {
     const errorMsg = document.getElementById("errorMsg");
 
-    errorMsg.value = "Unable to load services. Please refresh and try again.";
+    errorMsg.innerHTML = "Unable to load services. Please refresh and try again.";
     errorMsg.classList.remove("hidden");
   }
 
@@ -993,7 +994,7 @@
     
     if (showErr) {
       if (errorMsg.classList.contains("hidden")) errorMsg.classList.remove("hidden");
-      if (message != "") errorMsg.value = message;
+      if (message != "") errorMsg.innerHTML = message;
     } else {
       if (!errorMsg.classList.contains("hidden")) errorMsg.classList.add("hidden");
     }
