@@ -24,5 +24,29 @@ This file is responsible for rendering dropdown menu, calendar, slots and any er
 
 ## Cross-window Communication Protocol
 
-The parent window and the embedded component `#embedCal` communicate with the method `window.postMessage()`.
+The parent window and the embedded component `#embedCal` communicate with the method `window.postMessage()`. This method allows transmitting a wide variety of data objects. The data objects used in this programme have the following structure:
 
+```
+{
+  type: <type_of_this_message>,
+  data: <actual data>
+}
+```
+An examples of the actual data objects being passed: 
+```
+{
+  type: 'REQ_BOOK_CLS',
+  data: {
+    serviceId: serviceId,
+    startDate: startDate,
+    endDate: endDate,
+    timeZone: "Europe/London",
+  }
+}
+```
+
+The communicating protocal relies on the type field to decide what the message is for. 
+
+The types that parent window uses to send messages to the `#embedCal` are: `SET_SERVICES`, `SET_APPO_SLOTS`, `SET_CLS_SLOTS`, `SET_APPO_SLOTS_VARIANTS`, `ERROR_GET_SERVICES`, `ERROR_GET_SLOTS`, `ERROR_BOOK_CLS`. The types that `#embedCal` uses to send messages to the parent window are: `GET_APPO_SLOTS`, `GET_CLS_SLOTS`, `REQ_BOOK_APPO`, `REQ_BOOK_CLS`.
+
+The whole communication starts with the parent window sending a message typed `SET_SERVICES` with the services data to the `#embedCal`. If any issue causes failure for the parent to fetch the services data in the first place, it sends a message typed `ERROR_GET_SERVICES` instead. Since it is always the parent who talks first, there is no need to worry about the `#embedCal` sending message prior to parent window being fully loaded, which will cause trouble.
