@@ -2,6 +2,8 @@
 
 This component is developed for a business website. It allows customers to view available slots for any service and book directly. It complements the platform whose native calendars do not support multi-service slot queries.
 
+Two sets of display solutions are provided for mobiles and larger screens respectively (see screenshots at the bottom).
+
 ## What Each File Does
 
 There are two files in this project: 
@@ -78,8 +80,8 @@ In this implementation, however, communication is always initiated by the parent
 
 ## Screenshots
 
-<img src='./screenshots/slots.png' alt='Calendar filled with some slots' width='70%'/>
-Calendar filled with some slots
+<img src='./screenshots/slots.png' alt='Calendar filled with some slots' width='70%' />
+Calendar filled with some slots, displayed on PC
 
 <img src='./screenshots/empty_status.png' alt="Calendar's initial status on mobile phone" width='20%'/>
 Calendar's initial status on mobile phone
