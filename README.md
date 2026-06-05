@@ -1,4 +1,4 @@
-### [Live App is here](https://www.blueskypilates.co.uk/?rc=test-site)
+### [Live App is here](https://www.blueskypilates.co.uk/#bookingcalendar)
 
 This component is developed for a business website. It allows customers to view available slots for any service and book directly. It complements the platform whose native calendars do not support multi-service slot queries.
 
